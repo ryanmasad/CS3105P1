@@ -836,7 +836,9 @@ public class PotentialFieldsRobot {
 
     //Actually performs the evaluation for each point passed
     private double evalFractionalProgressOfCandidateMove(IntPoint p, IntPoint goal) {
+
         double fractionalProgress = 0;
+
         ArcSet arcs = get3Arcs(p, false);
 
         //obstacle potential is calculated by measuring the distance from all obstacles to the candidate point and summing them
@@ -876,12 +878,8 @@ public class PotentialFieldsRobot {
         double currentAngle = mod(heading - Math.PI / 2, 2 * Math.PI);
         double distToObstical = distanceToClosestObstacle();
 
+        //sample size is set to be the distance from the robot to the sample point ring
         sampleSize = sampleSizeDefault;
-
-
-        if (distToObstical != 0 && sampleSize > distToObstical)
-            sampleSize = (int) (distToObstical / 2.0);
-
 
         if (distance(goal, coords) / 2.0 < sampleSize)
             sampleSize = (int) (distance(goal, coords) / 2.0);
@@ -893,13 +891,25 @@ public class PotentialFieldsRobot {
 
 
         for (int i = 0; i < sensorDensity; i++) {
-            // Only make this a 'moveable' point if it does not touch an obstacle
-            Line2D.Double line = new Line2D.Double();
-            IntPoint p2 = getPointTowards(currentAngle, sampleSize);
-            line.setLine(coords.x, coords.y, p2.x, p2.y);
+            // Only make this a 'moveable' point if it does not have a high obstacle potential
 
-            moveablePoints.add(p2);
-            currentAngle += angleInterval;
+
+
+            Line2D.Double line = new Line2D.Double();
+
+            IntPoint p2 = getPointTowards(currentAngle, sampleSize);
+
+            int candidateObDis = candidateObstacleDis(p2);
+
+            if (candidateObDis > sampleSize) {
+
+                line.setLine(coords.x, coords.y, p2.x, p2.y);
+
+                moveablePoints.add(p2);
+                currentAngle += angleInterval;
+            }
+
+
         }
         stepSize = (int) (sampleSize / 2.0);
         if (stepSize <= 1)
@@ -909,6 +919,16 @@ public class PotentialFieldsRobot {
 
 
         return moveablePoints;
+    }
+
+    private int candidateObstacleDis(IntPoint candidatePosition) {
+        if (visibleObstacles.isEmpty())
+            return 0;
+        int closestIndex = 0;
+        for (int i = 0; i < visibleObstacles.size(); i++)
+            if (distance(candidatePosition, visibleObstacles.get(i)) < distance(candidatePosition, visibleObstacles.get(closestIndex)))
+                closestIndex = i;
+        return (int) Math.round(distance(coords, visibleObstacles.get(closestIndex)));
     }
 
 
