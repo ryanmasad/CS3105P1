@@ -817,7 +817,7 @@ public class PotentialFieldsRobot {
         //ie selects the point with the lowest fractional progress = f/(p+f) where p is past cost and f is estimated future cost
         List<IntPoint> moves = getSamplePoints();
 
-        // If there's no moves that doesn't go through obstacles, quit
+        // If there's no move that doesn't go through an obstacle, quit
 
         if (moves.isEmpty()) {
             return null;
@@ -838,6 +838,8 @@ public class PotentialFieldsRobot {
     private double evalFractionalProgressOfCandidateMove(IntPoint p, IntPoint goal) {
         double fractionalProgress = 0;
         ArcSet arcs = get3Arcs(p, false);
+
+        //obstacle potential is calculated by measuring the distance from all obstacles to the candidate point and summing them
 
         double[] obsDists = new double[visibleObstacles.size()];
 
@@ -865,6 +867,48 @@ public class PotentialFieldsRobot {
 
 
         return fractionalProgress;
+    }
+
+    public List<IntPoint> getSamplePointsFP() {
+
+        List<IntPoint> moveablePoints = new ArrayList<IntPoint>(sensorDensity);
+        double angleInterval = Math.PI / (sensorDensity - 1);
+        double currentAngle = mod(heading - Math.PI / 2, 2 * Math.PI);
+        double distToObstical = distanceToClosestObstacle();
+
+        sampleSize = sampleSizeDefault;
+
+
+        if (distToObstical != 0 && sampleSize > distToObstical)
+            sampleSize = (int) (distToObstical / 2.0);
+
+
+        if (distance(goal, coords) / 2.0 < sampleSize)
+            sampleSize = (int) (distance(goal, coords) / 2.0);
+        if (sampleSize < radius)
+            sampleSize = radius + 1;
+
+        if (sampleSize <= 10)
+            sampleSize = 10;
+
+
+        for (int i = 0; i < sensorDensity; i++) {
+            // Only make this a 'moveable' point if it does not touch an obstacle
+            Line2D.Double line = new Line2D.Double();
+            IntPoint p2 = getPointTowards(currentAngle, sampleSize);
+            line.setLine(coords.x, coords.y, p2.x, p2.y);
+
+            moveablePoints.add(p2);
+            currentAngle += angleInterval;
+        }
+        stepSize = (int) (sampleSize / 2.0);
+        if (stepSize <= 1)
+            stepSize = 2;
+        if (stepSize > 10)
+            stepSize = 10;
+
+
+        return moveablePoints;
     }
 
 
