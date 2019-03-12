@@ -1,0 +1,9 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="robot">
+    <output-path>$PROJECT_DIR$</output-path>
+    <root id="archive" name="robot.jar">
+      <element id="module-output" name="Practical 1" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/robot code/lib/ToolBox.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>
