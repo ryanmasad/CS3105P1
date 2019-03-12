@@ -28,6 +28,7 @@ public class PotentialFieldsRobot {
     private final int[][] visitedHistogram = new int[VISITED_HISTOGRAM_LENGTH][VISITED_HISTOGRAM_HEIGHT];
     // Robot:
     private IntPoint coords; // Position of robot
+    private IntPoint nearestObs; //Position of nearest Obstacle point
     private double heading; // Robot's heading in radians
     private int stepSize = 10; // How far the robot moves each step, in pixels
     // Goal:
@@ -36,6 +37,9 @@ public class PotentialFieldsRobot {
     private List<IntPoint> visibleObstacles;
     // Sample:
     private int sampleSize;
+
+    //If the preferred move brings the robot too close to an obstacle, Bug Mode is activated
+    private boolean BugMode = false;
 
     //private Vector lastMove;
 
@@ -89,6 +93,7 @@ public class PotentialFieldsRobot {
         this.goal = goalLocation;
         this.goalRadius = goalRadius;
         this.obstacles = obstacles;
+        this.nearestObs = new IntPoint();
 
     }
 
@@ -823,19 +828,69 @@ public class PotentialFieldsRobot {
             return null;
         }
 
+        //update current distance from nearest obstacle
+
+        if (visibleObstacles.size() > 0) {
+            for (IntPoint obstacle : visibleObstacles) {
+                if ((distance(coords, obstacle) - radius) < (distance(coords, nearestObs) - radius)) {
+                    nearestObs = obstacle;
+                }
+            }
+        }
+
         double[] moveValues = new double[moves.size()];
 
         for (int i = 0; i < moves.size(); i++) {
-            moveValues[i] = evalFractionalProgressOfCandidateMove(moves.get(i), this.goal);
+
+            moveValues[i] = evalFractionalProgressOfPoint(moves.get(i), this.goal);
 
         }
 
-        return moves.get(minIndex(moveValues));
+        IntPoint preferredMove = new IntPoint();
+
+        if (!BugMode) {
+            preferredMove = moves.get(minIndex(moveValues));
+        }
+        //if the preferredMove moves away from the obstacle(winding) we can take it and switch off bug mode
+        else if ((distance(moves.get(minIndex(moveValues)), nearestObs) > distance(coords, nearestObs)) && (distance(moves.get(minIndex(moveValues)), nearestObs) < distance(coords, goal))) {
+            BugMode = false;
+            preferredMove = moves.get(minIndex(moveValues));
+        } else {
+
+            double currentPosPotential = evalFractionalProgressOfPoint(coords, goal);
+
+            int preferredIndex = 0;
+
+            for (int i = 0; i < (moveValues.length); i++) {
+                if ((Math.abs((currentPosPotential - moveValues[i])) < currentPosPotential - moveValues[preferredIndex])) {
+                    preferredIndex = i;
+                }
+            }
+
+            preferredMove = moves.get(preferredIndex);
+        }
+
+        double distanceFromObstacle = radius * 50;
+
+        for (IntPoint obsticle :
+                visibleObstacles) {
+            if ((distance(preferredMove, obsticle) - radius) < distanceFromObstacle) {
+                distanceFromObstacle = (distance(preferredMove, obsticle) - radius);
+            }
+        }
+
+        if (distanceFromObstacle < radius * 2) {
+            BugMode = true;
+        } else {
+            BugMode = false;
+        }
+
+        return preferredMove;
 
     }
 
     //Actually performs the evaluation for each point passed
-    private double evalFractionalProgressOfCandidateMove(IntPoint p, IntPoint goal) {
+    private double evalFractionalProgressOfPoint(IntPoint p, IntPoint goal) {
 
         double fractionalProgress = 0;
 
@@ -843,11 +898,24 @@ public class PotentialFieldsRobot {
 
         //obstacle potential is calculated by measuring the distance from all obstacles to the candidate point and summing them
 
+        double obsPotential = getObsPotential(p);
+
+        double pastCost = arcs.firstArc.arcLength / 100;
+        double estFutureCost = (arcs.secondArc.arcLength + arcs.thirdArc.arcLength + obsPotential) / 100;
+
+        fractionalProgress = estFutureCost / (estFutureCost + pastCost);
+
+
+        return fractionalProgress;
+    }
+
+    private double getObsPotential(IntPoint point) {
+
         double[] obsDists = new double[visibleObstacles.size()];
 
         for (int i = 0; i < visibleObstacles.size(); i++) {
-            // Distance is set to 0 if it's closer than the radius to the obstacle
-            double distanceFromObstacle = distance(p, visibleObstacles.get(i)) - radius;
+            // Distance is set to 0 if the robot is closer than the radius to the obstacle
+            double distanceFromObstacle = distance(point, visibleObstacles.get(i)) - radius;
             obsDists[i] = distanceFromObstacle <= 0 ? 0 : distanceFromObstacle / 100;
         }
 
@@ -862,74 +930,13 @@ public class PotentialFieldsRobot {
             obsPotential += Math.pow(Math.E, -1 / ((sensorRange) - obsDists[i])) / (obsDists[i]);
         }
 
-        double pastCost = arcs.firstArc.arcLength / 100;
-        double estFutureCost = (arcs.secondArc.arcLength + arcs.thirdArc.arcLength + obsPotential) / 100;
+        return obsPotential;
 
-        fractionalProgress = estFutureCost / (estFutureCost + pastCost);
-
-
-        return fractionalProgress;
     }
 
-    public List<IntPoint> getSamplePointsFP() {
-
-        List<IntPoint> moveablePoints = new ArrayList<IntPoint>(sensorDensity);
-        double angleInterval = Math.PI / (sensorDensity - 1);
-        double currentAngle = mod(heading - Math.PI / 2, 2 * Math.PI);
-        double distToObstical = distanceToClosestObstacle();
-
-        //sample size is set to be the distance from the robot to the sample point ring
-        sampleSize = sampleSizeDefault;
-
-        if (distance(goal, coords) / 2.0 < sampleSize)
-            sampleSize = (int) (distance(goal, coords) / 2.0);
-        if (sampleSize < radius)
-            sampleSize = radius + 1;
-
-        if (sampleSize <= 10)
-            sampleSize = 10;
-
-
-        for (int i = 0; i < sensorDensity; i++) {
-            // Only make this a 'moveable' point if it does not have a high obstacle potential
 
 
 
-            Line2D.Double line = new Line2D.Double();
-
-            IntPoint p2 = getPointTowards(currentAngle, sampleSize);
-
-            int candidateObDis = candidateObstacleDis(p2);
-
-            if (candidateObDis > sampleSize) {
-
-                line.setLine(coords.x, coords.y, p2.x, p2.y);
-
-                moveablePoints.add(p2);
-                currentAngle += angleInterval;
-            }
-
-
-        }
-        stepSize = (int) (sampleSize / 2.0);
-        if (stepSize <= 1)
-            stepSize = 2;
-        if (stepSize > 10)
-            stepSize = 10;
-
-
-        return moveablePoints;
-    }
-
-    private int candidateObstacleDis(IntPoint candidatePosition) {
-        if (visibleObstacles.isEmpty())
-            return 0;
-        int closestIndex = 0;
-        for (int i = 0; i < visibleObstacles.size(); i++)
-            if (distance(candidatePosition, visibleObstacles.get(i)) < distance(candidatePosition, visibleObstacles.get(closestIndex)))
-                closestIndex = i;
-        return (int) Math.round(distance(coords, visibleObstacles.get(closestIndex)));
-    }
 
 
 
