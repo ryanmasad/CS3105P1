@@ -35,6 +35,7 @@ public class PotentialFields {
     private final int disArcDrawingId;
     private final int enArcId;
     private final int disArcId;
+    private final int enFPId;
     private final int startXId;
     private final int startYId;
     //private final int powerId;
@@ -55,7 +56,11 @@ public class PotentialFields {
     private int messageLabel;
     private boolean arcs;
     private boolean mike;
-    private boolean ArcPlanner;
+
+    private int ArcPlannerInt;
+
+
+    private boolean FractionalProgress;
     private ArrayList<Renderable> obstacles;
 
     private boolean stop;
@@ -101,11 +106,12 @@ public class PotentialFields {
         gui.addLabel(0, 8, "Robot Speed (moves/second):");
         robotSpeedId = gui.addTextField(0, 9, null);
 
-        gui.addLabel(7, 2, "Plannar: ");
-        enArcId = gui.addButton(7, 3, "Arc", this, "enableArc");
-        disArcId = gui.addButton(7, 4, "Euclidean", this, "disableArc");
+        gui.addLabel(7, 1, "Plannar: ");
+        enArcId = gui.addButton(7, 2, "Arc", this, "enableArc");
+        disArcId = gui.addButton(7, 3, "Euclidean", this, "disableArc");
+        enFPId = gui.addButton(7, 4, "Fractional Progress", this, "fractionalProgress");
         gui.setButtonEnabled(disArcId, false);
-        ArcPlanner = false;
+
 
         // More options
         gui.addLabel(7, 5, "Arc drawing: ");
@@ -229,19 +235,43 @@ public class PotentialFields {
     }
 
     public void enableArc() {
-        setArcPlanner(true);
+        setPlanarButtons(1);
     }
 
     public void disableArc() {
-        setArcPlanner(false);
+        setPlanarButtons(2);
+    }
+
+    public void fractionalProgress() {
+        setPlanarButtons(3);
     }
 
     // Pre-made courses:
 
-    private void setArcPlanner(boolean planar) {
-        this.ArcPlanner = planar;
-        gui.setButtonEnabled(enArcId, !planar);
-        gui.setButtonEnabled(disArcId, planar);
+    private void setPlanarButtons(int planar) {
+        this.ArcPlannerInt = planar;
+
+        switch (ArcPlannerInt) {
+            case 1:
+                gui.setButtonEnabled(enArcId, false);
+                gui.setButtonEnabled(disArcId, true);
+                gui.setButtonEnabled(enFPId, true);
+                break;
+
+            case 2:
+                gui.setButtonEnabled(enArcId, true);
+                gui.setButtonEnabled(disArcId, false);
+                gui.setButtonEnabled(enFPId, true);
+                break;
+
+            case 3:
+                gui.setButtonEnabled(enArcId, true);
+                gui.setButtonEnabled(disArcId, true);
+                gui.setButtonEnabled(enFPId, false);
+                break;
+        }
+
+
     }
 
     /**
@@ -605,7 +635,18 @@ public class PotentialFields {
             }
             while (stop);
 
-            boolean move = ArcPlanner ? rob.ArcMove() : rob.move(); // Move 1 step
+            boolean move = true;
+
+            switch (ArcPlannerInt) {
+                case 1:
+                    move = rob.ArcMove();
+                    break;
+                case 2:
+                    move = rob.move();
+                    break;
+                case 3:
+                    move = rob.fpMove();
+            }
 
             // If robot has crashed:
             if (!move) {
@@ -629,7 +670,7 @@ public class PotentialFields {
             // Draw movement arcs
             if (true /* ArcPlanner*/) {
                 drawArc(rob.getFirstArc(), Color.BLACK);
-                if (!ArcPlanner && !arcs) {
+                if (ArcPlannerInt != 1 && !arcs) {
 
 
                     MyArc newArc = new MyArc(rob.getSecondArc().p1, rob.getThirdArc().p2, rob.getSecondArc().startHeading, true);

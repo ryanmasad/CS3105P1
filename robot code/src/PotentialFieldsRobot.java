@@ -780,5 +780,31 @@ public class PotentialFieldsRobot {
         }
     }
 
+    // This is where my code (160016568) begins
+
+    public boolean fpMove() {
+
+        IntPoint moveTo = evaluateFPArc();
+
+        if (moveTo == null)
+            return false;
+
+        List<IntPoint> moves = getSamplePoints();
+
+        //T
+
+
+        return true;
+
+    }
+
+    private IntPoint evaluateFPArc() {
+
+
+        return null;
+    }
+
+
+
 
 }
