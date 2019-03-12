@@ -275,7 +275,7 @@ public class PotentialFieldsRobot {
 
     private double evalMoveArc(IntPoint p, IntPoint goal) {
         ArcSet arcs = get3Arcs(p, false);
-        double goalDist = (arcs.firstArc.arcLength + arcs.secondArc.arcLength + arcs.thirdArc.arcLength - radius) / 100; // Everything is divided by 10 because otherwise the
+        double goalDist = (arcs.firstArc.arcLength + arcs.secondArc.arcLength + arcs.thirdArc.arcLength - radius) / 100; // Everything is divided by 100 because otherwise the
         // numbers get too big
         double[] obsDists = new double[visibleObstacles.size()];
         for (int i = 0; i < visibleObstacles.size(); i++) {
@@ -789,7 +789,20 @@ public class PotentialFieldsRobot {
         if (moveTo == null)
             return false;
 
-        List<IntPoint> moves = getSamplePoints();
+        setArcs(get3Arcs(moveTo, true));
+        Vector robotPos = new Vector(coords.x, coords.y);
+        Vector samplePos = new Vector(moveTo.x, moveTo.y);
+
+        double theta = Calculator.getTheta(heading, robotPos, samplePos);
+
+        Vector chord = samplePos.diff(robotPos);
+        double chordLength = chord.getMagnitude();
+        double curvature = Calculator.getCurvature(theta, chordLength);
+        double arcLength = Calculator.getArcLength(theta, curvature, chordLength);
+        double headingChange = getHeadingChangeInterval(theta, arcLength);
+
+
+        moveTowards(heading + headingChange);
 
         //T
 
@@ -800,8 +813,58 @@ public class PotentialFieldsRobot {
 
     private IntPoint evaluateFPArc() {
 
+        //evaluates each possible sample point based on fractional progress
+        //ie selects the point with the lowest fractional progress = f/(p+f) where p is past cost and f is estimated future cost
+        List<IntPoint> moves = getSamplePoints();
 
-        return null;
+        // If there's no moves that doesn't go through obstacles, quit
+
+        if (moves.isEmpty()) {
+            return null;
+        }
+
+        double[] moveValues = new double[moves.size()];
+
+        for (int i = 0; i < moves.size(); i++) {
+            moveValues[i] = evalFractionalProgressOfCandidateMove(moves.get(i), this.goal);
+
+        }
+
+        return moves.get(minIndex(moveValues));
+
+    }
+
+    //Actually performs the evaluation for each point passed
+    private double evalFractionalProgressOfCandidateMove(IntPoint p, IntPoint goal) {
+        double fractionalProgress = 0;
+        ArcSet arcs = get3Arcs(p, false);
+
+        double[] obsDists = new double[visibleObstacles.size()];
+
+        for (int i = 0; i < visibleObstacles.size(); i++) {
+            // Distance is set to 0 if it's closer than the radius to the obstacle
+            double distanceFromObstacle = distance(p, visibleObstacles.get(i)) - radius;
+            obsDists[i] = distanceFromObstacle <= 0 ? 0 : distanceFromObstacle / 100;
+        }
+
+        double obsPotential = 0;
+        for (int i = 0; i < visibleObstacles.size(); i++) {
+            if (obsDists[i] <= 0) {
+                obsPotential = Double.MAX_VALUE;
+                break;
+            } else if (obsDists[i] > sensorRange) {
+                continue;
+            }
+            obsPotential += Math.pow(Math.E, -1 / ((sensorRange) - obsDists[i])) / (obsDists[i]);
+        }
+
+        double pastCost = arcs.firstArc.arcLength / 100;
+        double estFutureCost = (arcs.secondArc.arcLength + arcs.thirdArc.arcLength + obsPotential) / 100;
+
+        fractionalProgress = estFutureCost / (estFutureCost + pastCost);
+
+
+        return fractionalProgress;
     }
 
 
