@@ -28,7 +28,6 @@ public class PotentialFieldsRobot {
     private final int[][] visitedHistogram = new int[VISITED_HISTOGRAM_LENGTH][VISITED_HISTOGRAM_HEIGHT];
     // Robot:
     private IntPoint coords; // Position of robot
-    private IntPoint nearestObs; //Position of nearest Obstacle point
     private double heading; // Robot's heading in radians
     private int stepSize = 10; // How far the robot moves each step, in pixels
     // Goal:
@@ -93,7 +92,6 @@ public class PotentialFieldsRobot {
         this.goal = goalLocation;
         this.goalRadius = goalRadius;
         this.obstacles = obstacles;
-        this.nearestObs = new IntPoint();
 
     }
 
@@ -818,6 +816,10 @@ public class PotentialFieldsRobot {
 
     private IntPoint evaluateFPArc() {
 
+        int threshold = 50;
+
+        double distanceToGoal = distance(coords, goal);
+
         //evaluates each possible sample point based on fractional progress
         //ie selects the point with the lowest fractional progress = f/(p+f) where p is past cost and f is estimated future cost
         List<IntPoint> moves = getSamplePoints();
@@ -830,19 +832,12 @@ public class PotentialFieldsRobot {
 
         //update current distance from nearest obstacle
 
-        if (visibleObstacles.size() > 0) {
-            for (IntPoint obstacle : visibleObstacles) {
-                if ((distance(coords, obstacle) - radius) < (distance(coords, nearestObs) - radius)) {
-                    nearestObs = obstacle;
-                }
-            }
-        }
 
         double[] moveValues = new double[moves.size()];
 
         for (int i = 0; i < moves.size(); i++) {
 
-            moveValues[i] = evalFractionalProgressOfPoint(moves.get(i), this.goal);
+            moveValues[i] = FractionalProgress(moves.get(i));
 
         }
 
@@ -850,47 +845,61 @@ public class PotentialFieldsRobot {
 
         if (!BugMode) {
             preferredMove = moves.get(minIndex(moveValues));
-        }
-        //if the preferredMove moves away from the obstacle(winding) we can take it and switch off bug mode
-        else if ((distance(moves.get(minIndex(moveValues)), nearestObs) > distance(coords, nearestObs)) && (distance(moves.get(minIndex(moveValues)), nearestObs) < distance(coords, goal))) {
-            BugMode = false;
-            preferredMove = moves.get(minIndex(moveValues));
         } else {
+            //if the robot is in bug mode it searches through it's available moves to see if any are viable unwinds (ie, have an OP lower than the threshold and a lower FP than the current position) and if so, selects the one with the lowest fractional progress
 
-            double currentPosPotential = evalFractionalProgressOfPoint(coords, goal);
 
-            int preferredIndex = 0;
+            ArrayList<IntPoint> unwinds = new ArrayList<>();
+            ArrayList<IntPoint> winds = new ArrayList<>();
 
-            for (int i = 0; i < (moveValues.length); i++) {
-                if ((Math.abs((currentPosPotential - moveValues[i])) < currentPosPotential - moveValues[preferredIndex])) {
-                    preferredIndex = i;
+            for (IntPoint move : moves) {
+                if (getObsPotential(move) < threshold && distance(move, goal) < distanceToGoal) {
+                    unwinds.add(move);
+                } else if (getObsPotential(move) < threshold) {
+                    winds.add(move);
                 }
             }
 
-            preferredMove = moves.get(preferredIndex);
-        }
+            if (unwinds.size() > 0) {
 
-        double distanceFromObstacle = radius * 50;
+                double[] unwindValues = new double[unwinds.size()];
 
-        for (IntPoint obsticle :
-                visibleObstacles) {
-            if ((distance(preferredMove, obsticle) - radius) < distanceFromObstacle) {
-                distanceFromObstacle = (distance(preferredMove, obsticle) - radius);
+                for (int i = 0; i < unwinds.size(); i++) {
+
+                    unwindValues[i] = FractionalProgress(unwinds.get(i));
+
+                }
+
+                preferredMove = unwinds.get(minIndex(unwindValues));
+
+            }
+            //if there are no viable unwinding points, the robot should select a winding point that minimises fractional progress
+            else if (winds.size() > 0) {
+
+                double[] windValues = new double[winds.size()];
+
+                for (int i = 0; i < winds.size(); i++) {
+
+                    windValues[i] = FractionalProgress(winds.get(i));
+
+                }
+
+                preferredMove = winds.get(minIndex(windValues));
+            }
+            //as a last resort, just select the move with the highest FP
+            else {
+                preferredMove = moves.get(minIndex(moveValues));
             }
         }
 
-        if (distanceFromObstacle < radius * 2) {
-            BugMode = true;
-        } else {
-            BugMode = false;
-        }
+        BugMode = (getObsPotential(coords) > 20);
 
         return preferredMove;
 
     }
 
     //Actually performs the evaluation for each point passed
-    private double evalFractionalProgressOfPoint(IntPoint p, IntPoint goal) {
+    private double FractionalProgress(IntPoint p) {
 
         double fractionalProgress = 0;
 
@@ -908,6 +917,7 @@ public class PotentialFieldsRobot {
 
         return fractionalProgress;
     }
+
 
     private double getObsPotential(IntPoint point) {
 
