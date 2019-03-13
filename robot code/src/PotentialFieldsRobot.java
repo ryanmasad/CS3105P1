@@ -28,6 +28,7 @@ public class PotentialFieldsRobot {
     private final int[][] visitedHistogram = new int[VISITED_HISTOGRAM_LENGTH][VISITED_HISTOGRAM_HEIGHT];
     // Robot:
     private IntPoint coords; // Position of robot
+    private IntPoint hitPoint; //Position of robot when BugMode started
     private double heading; // Robot's heading in radians
     private int stepSize = 10; // How far the robot moves each step, in pixels
     // Goal:
@@ -92,6 +93,7 @@ public class PotentialFieldsRobot {
         this.goal = goalLocation;
         this.goalRadius = goalRadius;
         this.obstacles = obstacles;
+        this.hitPoint = new IntPoint(0, 0);
 
     }
 
@@ -816,7 +818,7 @@ public class PotentialFieldsRobot {
 
     private IntPoint evaluateFPArc() {
 
-        int threshold = 50;
+        int threshold = (int) (radius * 1.5);
 
         double distanceToGoal = distance(coords, goal);
 
@@ -845,6 +847,12 @@ public class PotentialFieldsRobot {
 
         if (!BugMode) {
             preferredMove = moves.get(minIndex(moveValues));
+
+            if (getObsPotential(coords) > threshold) {
+                BugMode = true;
+                hitPoint = new IntPoint(coords.x, coords.y);
+            }
+
         } else {
             //if the robot is in bug mode it searches through it's available moves to see if any are viable unwinds (ie, have an OP lower than the threshold and a lower FP than the current position) and if so, selects the one with the lowest fractional progress
 
@@ -853,7 +861,7 @@ public class PotentialFieldsRobot {
             ArrayList<IntPoint> winds = new ArrayList<>();
 
             for (IntPoint move : moves) {
-                if (getObsPotential(move) < threshold && distance(move, goal) < distanceToGoal) {
+                if (getObsPotential(move) < threshold && (distance(move, goal) + radius) < distance(hitPoint, goal)) {
                     unwinds.add(move);
                 } else if (getObsPotential(move) < threshold) {
                     winds.add(move);
@@ -866,33 +874,37 @@ public class PotentialFieldsRobot {
 
                 for (int i = 0; i < unwinds.size(); i++) {
 
-                    unwindValues[i] = FractionalProgress(unwinds.get(i));
+                    unwindValues[i] = getObsPotential(unwinds.get(i));
 
                 }
 
                 preferredMove = unwinds.get(minIndex(unwindValues));
 
             }
-            //if there are no viable unwinding points, the robot should select a winding point that minimises fractional progress
+            //if there are no viable unwinding points, the robot should select a winding point that maximises obstacle potential
             else if (winds.size() > 0) {
 
                 double[] windValues = new double[winds.size()];
 
                 for (int i = 0; i < winds.size(); i++) {
 
-                    windValues[i] = FractionalProgress(winds.get(i));
+                    windValues[i] = getObsPotential(winds.get(i));
 
                 }
 
-                preferredMove = winds.get(minIndex(windValues));
+                preferredMove = winds.get(maxIndex(windValues));
             }
             //as a last resort, just select the move with the highest FP
             else {
                 preferredMove = moves.get(minIndex(moveValues));
             }
+
+            if (getObsPotential(coords) < threshold / 4) {
+                BugMode = false;
+                hitPoint = coords;
+            }
         }
 
-        BugMode = (getObsPotential(coords) > 20);
 
         return preferredMove;
 
@@ -942,6 +954,22 @@ public class PotentialFieldsRobot {
 
         return obsPotential;
 
+    }
+
+    public int maxIndex(double array[]) {
+        if (array.length == 0) {
+            return -1; // array contains no elements
+        }
+        double max = array[0];
+        int pos = 0;
+
+        for (int i = 1; i < array.length; i++) {
+            if (max < array[i]) {
+                pos = i;
+                max = array[i];
+            }
+        }
+        return pos;
     }
 
 
