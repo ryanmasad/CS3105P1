@@ -31,6 +31,7 @@ public class PotentialFieldsRobot {
     private IntPoint hitPoint; //Position of robot when BugMode started
     private double heading; // Robot's heading in radians
     private int stepSize = 10; // How far the robot moves each step, in pixels
+    private boolean ArcMode = true;
     // Goal:
     private IntPoint goal;
     private int goalRadius;
@@ -344,7 +345,7 @@ public class PotentialFieldsRobot {
             return false;
 
 
-        IntPoint makeMove = evaluateMovePoints(moveTo); // Find the best move point using current sample as goal TODO: what if another sample point could be used and fail with this one?
+        IntPoint makeMove = evaluateMovePoints(moveTo); // Find the best move point using current sample as goal
         if (makeMove == null)
             return false;
 
@@ -789,7 +790,7 @@ public class PotentialFieldsRobot {
 
     public boolean fpMove() {
 
-        IntPoint moveTo = evaluateFPArc();
+        IntPoint moveTo = evaluateFP();
 
         if (moveTo == null)
             return false;
@@ -816,7 +817,8 @@ public class PotentialFieldsRobot {
 
     }
 
-    private IntPoint evaluateFPArc() {
+
+    private IntPoint evaluateFP() {
 
         int threshold = (int) (radius * 1.5);
 
@@ -839,7 +841,11 @@ public class PotentialFieldsRobot {
 
         for (int i = 0; i < moves.size(); i++) {
 
-            moveValues[i] = FractionalProgress(moves.get(i));
+            if (ArcMode) {
+                moveValues[i] = FractionalProgressArcs(moves.get(i));
+            } else {
+                moveValues[i] = FractionalProgressLinear(moves.get(i));
+            }
 
         }
 
@@ -861,9 +867,9 @@ public class PotentialFieldsRobot {
             ArrayList<IntPoint> winds = new ArrayList<>();
 
             for (IntPoint move : moves) {
-                if (getObsPotential(move) < threshold && (distance(move, goal) + radius) < distance(hitPoint, goal)) {
+                if (getObsPotential(move) < threshold && (distance(move, goal) + radius * 2) < distance(hitPoint, goal)) {
                     unwinds.add(move);
-                } else if (getObsPotential(move) < threshold) {
+                } else if (getObsPotential(move) < threshold * 1.5) {
                     winds.add(move);
                 }
             }
@@ -900,6 +906,7 @@ public class PotentialFieldsRobot {
             }
 
             if (getObsPotential(coords) < threshold / 4) {
+                double currentObsPot = getObsPotential(coords);
                 BugMode = false;
                 hitPoint = coords;
             }
@@ -910,8 +917,8 @@ public class PotentialFieldsRobot {
 
     }
 
-    //Actually performs the evaluation for each point passed
-    private double FractionalProgress(IntPoint p) {
+    //Actually performs the evaluation for each point passed using arcs
+    private double FractionalProgressArcs(IntPoint p) {
 
         double fractionalProgress = 0;
 
@@ -926,6 +933,21 @@ public class PotentialFieldsRobot {
 
         fractionalProgress = estFutureCost / (estFutureCost + pastCost);
 
+
+        return fractionalProgress;
+    }
+
+    private double FractionalProgressLinear(IntPoint p) {
+
+        double fractionalProgress = 0;
+
+        double obsPotential = getObsPotential(p);
+
+        double pastCost = distance(p, coords) / 100;
+
+        double estFutureCost = (distance(p, goal) + obsPotential) / 100;
+
+        fractionalProgress = estFutureCost / (estFutureCost + pastCost);
 
         return fractionalProgress;
     }

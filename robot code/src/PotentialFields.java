@@ -111,6 +111,8 @@ public class PotentialFields {
         disArcId = gui.addButton(7, 3, "Euclidean", this, "disableArc");
         enFPId = gui.addButton(7, 4, "Fractional Progress", this, "fractionalProgress");
         gui.setButtonEnabled(disArcId, false);
+        setPlanarButtons(2);
+
 
 
         // More options
@@ -320,41 +322,17 @@ public class PotentialFields {
     }
 
     public void newobsticalShape() {
-        newGUI = new EasyGui(100, 100);
-        newGUI.addLabel(0, 0, "Enter the coordinates of the five points : ");
-
-        newGUI.addLabel(1, 0, "Point1 X  : ");
-
-        x1newID = newGUI.addTextField(1, 1, null);
-        newGUI.addLabel(1, 2, "Point1 Y  : ");
-        y1newID = newGUI.addTextField(1, 3, null);
-
-        newGUI.addLabel(2, 0, "Point2 X  : ");
-        x2newID = newGUI.addTextField(2, 1, null);
-        newGUI.addLabel(2, 2, "Point2 Y  : ");
-        y2newID = newGUI.addTextField(2, 3, null);
-
-
-        newGUI.addLabel(3, 0, "Point3 X  : ");
-        x3newID = newGUI.addTextField(3, 1, null);
-        newGUI.addLabel(3, 2, "Point3 Y  : ");
-        y3newID = newGUI.addTextField(3, 3, null);
-
-        newGUI.addLabel(4, 0, "Point4 X  : ");
-        x4newID = newGUI.addTextField(4, 1, null);
-        newGUI.addLabel(4, 2, "Point4 Y  : ");
-        y4newID = newGUI.addTextField(4, 3, null);
-
-        newGUI.addLabel(5, 0, "Point5 X  : ");
-        x5newID = newGUI.addTextField(5, 1, null);
-        newGUI.addLabel(5, 2, "Point5 Y  : ");
-        y5newID = newGUI.addTextField(5, 3, null);
-
-        messageLabel = newGUI.addLabel(6, 0, "   ");
-
-        buttonIdNEW = newGUI.addButton(7, 1, "done", this, "createObstical");
-
-        newGUI.show();
+        clearObs();
+        setStart("0", "0");
+        setGoal("1500", "950");
+        gui.setTextFieldContent(goalRadiusId, "20");
+        RenderablePolyline line = new RenderablePolyline();
+        int[][] linePoints = {{800, 700}, {800, 900}, {1300, 800}, {1400, 300}, {1200, 350}};
+        for (int[] p : linePoints) {
+            line.addPoint(p[0], p[1]);
+        }
+        line.setProperties(Color.DARK_GRAY, 2f);
+        setupObstacle(line);
 
 
     }
