@@ -787,6 +787,23 @@ public class PotentialFieldsRobot {
     }
 
     // This is where my code (160016568) begins
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+
 
     public boolean fpMove() {
 
@@ -818,14 +835,14 @@ public class PotentialFieldsRobot {
     }
 
 
+    //evaluates each possible sample point based on fractional progress
+    //ie selects the point with the lowest fractional progress = f/(p+f) where p is past cost and f is estimated future cost
     private IntPoint evaluateFP() {
 
         int threshold = (int) (radius * 1.5);
 
         double distanceToGoal = distance(coords, goal);
 
-        //evaluates each possible sample point based on fractional progress
-        //ie selects the point with the lowest fractional progress = f/(p+f) where p is past cost and f is estimated future cost
         List<IntPoint> moves = getSamplePoints();
 
         // If there's no move that doesn't go through an obstacle, quit
@@ -833,8 +850,6 @@ public class PotentialFieldsRobot {
         if (moves.isEmpty()) {
             return null;
         }
-
-        //update current distance from nearest obstacle
 
 
         double[] moveValues = new double[moves.size()];
@@ -850,6 +865,8 @@ public class PotentialFieldsRobot {
         }
 
         IntPoint preferredMove = new IntPoint();
+
+        // The Program then check to see if the
 
         if (!BugMode) {
             preferredMove = moves.get(minIndex(moveValues));
