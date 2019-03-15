@@ -922,7 +922,7 @@ public class PotentialFieldsRobot {
                 preferredMove = moves.get(minIndex(moveValues));
             }
 
-            if (getObsPotential(coords) < threshold / 4) {
+            if (getObsPotential(coords) < 4) {
                 double currentObsPot = getObsPotential(coords);
                 BugMode = false;
                 hitPoint = coords;
