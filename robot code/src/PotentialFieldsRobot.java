@@ -866,7 +866,7 @@ public class PotentialFieldsRobot {
 
         IntPoint preferredMove = new IntPoint();
 
-        // The Program then check to see if the
+        // The Program then check to see if Bug Mode has been activated
 
         if (!BugMode) {
             preferredMove = moves.get(minIndex(moveValues));
